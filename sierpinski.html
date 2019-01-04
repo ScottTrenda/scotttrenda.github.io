@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style type="text/css">
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+      }
+      #n {
+        width: 3em;
+      }
+      #iterStep {
+        width: 6em;
+      }
+      .wrap {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .scroll {
+        flex-grow: 1;
+        overflow: auto;
+      }
+      canvas {
+        display: block;
+        border: 1px solid black;
+        width: 5000px;
+        height: 5000px;
+      }
+      canvas.zoomOut {
+        width: 100%;
+        height: calc(100vh - 19px);
+      }
+    </style>
+
+    <title>Chaos Game Generator</title>
+  </head>
+
+  <body>
+    <div class="wrap">
+      <div>
+        <button id="go" accesskey="s">Start</button>
+        <button id="clear" accesskey="c">Clear</button>
+        <input type="number" id="n" value="3" placeholder="Sides" step="1" min="3">
+        <input type="number" id="iterStep" value="20000" placeholder="Step" step="100">
+        Iters: <span id="iters">0</span>
+        <!-- Vars: <span id="vars"></span> -->
+        <button id="save">Save File</button>
+        <a id="file" href="" download="sierpinski.png" hidden>save</a>
+        <button id="zoom">Zoom Out</button>
+        <select id="restrict">
+          <option value="0">No restriction</option>
+          <option value="1">No subsequent same vertex</option>
+          <option value="2">No subsequent left vertex</option>
+          <option value="3">No subsequent right vertex</option>
+          <option value="4">No subsequent neighbor vertex</option>
+        </select>
+      </div>
+      <div class="scroll">
+        <canvas id="canvas"></canvas>
+      </div>
+    </div>
+
+
+    <script>
+      var canvas = document.getElementById('canvas')
+      canvas.width = canvas.clientWidth
+      canvas.height = canvas.clientHeight
+
+      var on, n, pts, pt,
+      off = 2,
+      bnd = [canvas.width - off * 2, canvas.height - off * 2],
+      ctx = canvas.getContext('2d'),
+      iters = document.getElementById('iters'),
+      file = document.getElementById('file')
+
+      init()
+      //document.getElementById('vars').innerText = `${bnd}, (${pts.join('), (')})`
+
+      function init() {
+        n = +document.getElementById('n').value
+        pts = Array(n).fill(0)
+          .map(function(j, i) {
+            var a = 2 * Math.PI * i / n - Math.PI / (n % 2 ? 2 : n)
+            return bnd.map((x, i) => Math.round((Math[i ? 'sin' : 'cos'](a) + 1) * x / 2))
+          })
+          .map(function(p, i, arr) {
+            var x = arr.map(p => p[0]),
+                y = arr.map(p => p[1]),
+                min = [x, y].map(aMin),
+                max = [x, y].map(aMax)
+            return p.map((k, i) => Math.floor((k - min[i]) * bnd[i] / (max[i] - min[i])))
+          })
+          .map(p => p.map(k => k + off))
+        pt = [Math.random(), Math.random()].map(range)
+        clear()
+      }
+      function clear() {
+        ctx.fillStyle = 'white'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = ctx.strokeStyle = 'red'
+        ctx.beginPath()
+        pts.forEach(function(p, i) {
+          ctx.fillRect(p[0] - 2, p[1] - 2, 4, 4)
+          if (!i) ctx.moveTo.apply(ctx, p)
+          ctx.lineTo.apply(ctx, pts[(i + 1) % pts.length])
+        })
+        ctx.stroke()
+        ctx.fillStyle = 'black'
+        iters.innerText = 0
+      }
+
+      function aMin(arr) {
+        return Math.min.apply(null, arr)
+      }
+      function aMax(arr) {
+        return Math.max.apply(null, arr)
+      }
+      function range(n, i) {
+        var nums = pts.map(function(o) { return o[i] })
+        var min = aMin(nums)
+        var max = aMax(nums)
+        return n * (max - min) + min
+      }
+      document.getElementById('n').addEventListener('keyup', init)
+      document.getElementById('go').onclick = function() {
+        if (on = !on) render()
+        this.innerText = on ? 'Stop' : 'Start'
+      }
+      document.getElementById('zoom').onclick = function() {
+        this.innerText = canvas.className ? 'Zoom Out' : 'Zoom In'
+        canvas.className = canvas.className ? '' : 'zoomOut'
+      }
+      document.getElementById('clear').onclick = clear
+      document.getElementById('restrict').onchange = clear
+      document.getElementById('save').onclick = function() {
+        var restrict = +document.getElementById('restrict').value
+        save.download = 'sierpinski-' + document.getElementById('n').value + (restrict ? '-restriction-' + restrict : '') + '.png'
+        if (canvas.msToBlob)
+          navigator.msSaveBlob(canvas.msToBlob(), save.download)
+        else if (canvas.toBlob)
+          canvas.toBlob(function(blob) {
+            save.href = URL.createObjectURL(blob)
+            save.click()
+            URL.revokeObjectURL(save.href)
+          })
+      }
+
+      function render() {
+        var iterStep = +document.getElementById('iterStep').value
+        var restrict = +document.getElementById('restrict').value
+        for (var prevToN, i = 0; i < iterStep; i++) {
+          var toN = Math.floor(Math.random() * pts.length)
+          if (restrict == 1 && toN === prevToN) continue
+          if ((restrict == 2 || restrict == 4) && toN === (prevToN + 1) % n) continue
+          if ((restrict == 3 || restrict == 4) && toN === (prevToN - 1 + n) % n) continue
+          // if (toN === prevToN) continue
+          prevToN = toN
+          var to = pts[toN]
+          pt = pt.map(function(xy, i) {
+            return (xy + to[i]) / 2
+          })
+          ctx.fillRect(pt[0], pt[1], 1, 1)
+        }
+        iters.innerText = +iters.innerText + iterStep
+        if (on) setTimeout(render)
+      }
+    </script>
+
+  </body>
+
+</html>
