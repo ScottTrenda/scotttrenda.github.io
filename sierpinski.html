@@ -17,6 +17,9 @@
       #iterStep {
         width: 6em;
       }
+      .bar {
+        height: 22px;
+      }
       .wrap {
         display: flex;
         flex-direction: column;
@@ -34,7 +37,7 @@
       }
       canvas.zoomOut {
         width: 100%;
-        height: calc(100vh - 19px);
+        height: calc(100vh - 22px);
       }
     </style>
 
@@ -43,7 +46,7 @@
 
   <body>
     <div class="wrap">
-      <div>
+      <div class="bar">
         <button id="go" accesskey="s">Start</button>
         <button id="clear" accesskey="c">Clear</button>
         <input type="number" id="n" value="3" placeholder="Sides" step="1" min="3">
@@ -128,6 +131,7 @@
         return n * (max - min) + min
       }
       document.getElementById('n').addEventListener('keyup', init)
+      document.getElementById('n').addEventListener('change', init)
       document.getElementById('go').onclick = function() {
         if (on = !on) render()
         this.innerText = on ? 'Stop' : 'Start'
@@ -170,6 +174,8 @@
         iters.innerText = +iters.innerText + iterStep
         if (on) setTimeout(render)
       }
+
+      setTimeout(function() { document.getElementById('zoom').click() })
     </script>
 
   </body>
